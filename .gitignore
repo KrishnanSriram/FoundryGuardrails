@@ -1,0 +1,69 @@
+# ---------------------------------------------------------------------------
+# Terraform
+# ---------------------------------------------------------------------------
+# Provider binaries / module cache (recreated by `terraform init`)
+.terraform/
+
+# State: holds subscription/tenant IDs, principal IDs, resource IDs and
+# endpoints. Never commit it; use a remote backend (e.g. azurerm) to share.
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+
+# Real variable values (subscription_id etc.). Commit terraform.tfvars.example instead.
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+
+# Saved plans can contain sensitive values
+*.tfplan
+*.tfplan.json
+tfplan
+
+# Local overrides and debug output
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+crash.log
+crash.*.log
+.terraformrc
+terraform.rc
+
+# NOTE: .terraform.lock.hcl is intentionally NOT ignored; commit it so
+# everyone gets the same provider versions.
+
+# ---------------------------------------------------------------------------
+# Python / uv
+# ---------------------------------------------------------------------------
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+
+# NOTE: uv.lock, pyproject.toml and .python-version ARE committed.
+
+# ---------------------------------------------------------------------------
+# Environment / secrets
+# ---------------------------------------------------------------------------
+# .env holds endpoints generated from `terraform output`; regenerate locally.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ---------------------------------------------------------------------------
+# Editors / OS
+# ---------------------------------------------------------------------------
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*~
