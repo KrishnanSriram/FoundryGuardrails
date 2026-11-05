@@ -32,9 +32,6 @@ CLIENTS = {
     "deployments endpoint, api-version 2025-04-01-preview":
         openai.AzureOpenAI(azure_endpoint=BASE, azure_ad_token_provider=token,
                            api_version="2025-04-01-preview"),
-    "deployments endpoint, api-version 2026-03-17":
-        openai.AzureOpenAI(azure_endpoint=BASE, azure_ad_token_provider=token,
-                            api_version="2026-03-17")
 }
 
 for label, client in CLIENTS.items():

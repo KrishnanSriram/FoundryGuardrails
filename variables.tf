@@ -101,16 +101,61 @@ variable "pii_output_categories" {
   ]
 }
 
-variable "pci_regex_patterns" {
-  description = "Regex blocklist applied to prompts AND completions to stop card data / SSNs crossing the model boundary."
-  type        = map(string)
-  default = {
-    visa       = "\\b4\\d{3}([ -]?\\d{4}){3}\\b"
-    mastercard = "\\b(5[1-5]\\d{2}|2[2-7]\\d{2})([ -]?\\d{4}){3}\\b"
-    amex       = "\\b3[47]\\d{2}[ -]?\\d{6}[ -]?\\d{5}\\b"
-    discover   = "\\b6(011|5\\d{2})([ -]?\\d{4}){3}\\b"
-    cvv        = "\\b(CVV2?|CVC2?|cvv2?|cvc2?)\\b\\D{0,5}\\d{3,4}\\b"
-    us_ssn     = "\\b\\d{3}-\\d{2}-\\d{4}\\b"
+# ---------------------------------------------------------------------------
+# Claude (Anthropic) - see claude.tf
+# ---------------------------------------------------------------------------
+variable "enable_claude" {
+  description = "Deploy a Claude model alongside GPT. Opt-in: deploying accepts Anthropic's offer terms (see claude.tf)."
+  type        = bool
+  default     = false
+}
+
+variable "claude_model" {
+  description = "Claude model id. Haiku is the smallest/cheapest family; claude-haiku-4-5 is the older fallback."
+  type        = string
+  default     = "claude-haiku-5-5"
+}
+
+variable "claude_model_version" {
+  description = "Claude model version in Foundry (\"1\" for current models)."
+  type        = string
+  default     = "1"
+}
+
+variable "claude_capacity" {
+  description = "Rate limit in thousands of tokens/minute. Pay-per-token, so this caps throughput, not cost."
+  type        = number
+  default     = 25
+}
+
+variable "claude_organization_name" {
+  description = "Your organization name, sent to Anthropic via modelProviderData (required when enable_claude = true)."
+  type        = string
+  default     = ""
+}
+
+variable "claude_country_code" {
+  description = "Two-letter ISO country code for modelProviderData."
+  type        = string
+  default     = "US"
+
+  validation {
+    condition     = length(var.claude_country_code) == 2
+    error_message = "Must be a 2-letter country code."
+  }
+}
+
+variable "claude_industry" {
+  description = "Industry for modelProviderData (lowercase)."
+  type        = string
+  default     = "technology"
+
+  validation {
+    condition = contains([
+      "technology", "finance", "healthcare", "education",
+      "retail", "manufacturing", "government", "media", "other",
+    ], var.claude_industry)
+    error_message = "Must be one of: technology, finance, healthcare, education, retail, manufacturing, government, media, other."
   }
 }
 

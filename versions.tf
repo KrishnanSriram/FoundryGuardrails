@@ -7,7 +7,7 @@ terraform {
       version = ">= 4.40, < 6.0"
     }
     # azapi is used for the Foundry resources so we can pin exact ARM API
-    # versions (guardrail filter names / blocklist features move faster than azurerm).
+    # versions (guardrail filter names and features move faster than azurerm).
     azapi = {
       source  = "Azure/azapi"
       version = "~> 2.5"

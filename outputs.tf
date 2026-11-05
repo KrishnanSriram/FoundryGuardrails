@@ -24,6 +24,15 @@ output "deployment_name" {
   value = azapi_resource.gpt_nano.name
 }
 
+output "anthropic_base_url" {
+  description = "Base URL for the Anthropic SDK (AnthropicFoundry client)."
+  value       = "https://${azapi_resource.foundry.name}.services.ai.azure.com/anthropic"
+}
+
+output "claude_deployment_name" {
+  value = try(azapi_resource.claude[0].name, "")
+}
+
 output "guardrail_policy_id" {
   description = "Full ARM ID - also usable as rai_policy_name on Foundry hosted agents."
   value       = azapi_resource.guardrail_policy.id
