@@ -38,14 +38,6 @@ CONTENT_SAFETY_API = "2024-09-01"
 # text:analyze returns severities 0 (safe), 2 (low), 4 (medium), 6 (high).
 SEVERITY_FLOOR = {"Low": 2, "Medium": 4, "High": 6}
 
-# Input redaction: same categories as guarded_chat.py.
-INPUT_REDACT_CATEGORIES = [
-    "CreditCardNumber", "USBankAccountNumber", "ABARoutingNumber",
-    "USSocialSecurityNumber", "InternationalBankingAccountNumber",
-    "Email", "PhoneNumber", "Address", "Person", "USDriversLicenseNumber",
-    "USUKPassportNumber", "IPAddress",
-]
-
 # Blocking categories (Language names) matching pii_output_categories in
 # variables.tf. Used on output, and on input when redaction is turned off.
 # Detection runs on all categories; only these block.
@@ -57,6 +49,10 @@ BLOCK_CATEGORIES = {
     "Email", "PhoneNumber", "Address",
     "AzureStorageAccountKey", "AzureSAS", "SQLServerConnectionString",
 }
+
+# Input redaction: everything that blocks on output, plus names and IPs
+# (redacting those is harmless, blocking on them would be too noisy).
+INPUT_REDACT_CATEGORIES = sorted(BLOCK_CATEGORIES | {"Person", "IPAddress"})
 OUTPUT_BLOCK_CATEGORIES = BLOCK_CATEGORIES  # backwards-compatible name
 
 

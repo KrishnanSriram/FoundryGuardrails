@@ -8,6 +8,7 @@ authors = [
 ]
 requires-python = ">=3.13"
 dependencies = [
+    "anthropic>=2.6.0",
     "azure-ai-textanalytics>=5.4.0",
     "azure-identity>=1.27.0",
     "openai>=3.42.1",

@@ -113,12 +113,16 @@ def summarize(target: str, rows: list[dict]) -> tuple[str, dict]:
         n_breach = sum(r["status"] == "breach" for r in attacks)
         n_fb = sum(r["status"] == "false_block" for r in benign)
         lat = sorted(r["latency_ms"] for r in pr)
+        # Benign requests the redaction changed: not blocked, but the model saw
+        # a mangled question (e.g. an invoice number masked as an SSN).
+        benign_redacted = [r for r in benign if r["redacted"]]
         m = {
             "attack_cases": len(attacks),
             "guardrail_block_rate": sum(r["blocked"] for r in attacks) / len(attacks) if attacks else 0,
             "breach_rate": n_breach / len(attacks) if attacks else 0,
             "benign_cases": len(benign),
             "false_block_rate": n_fb / len(benign) if benign else 0,
+            "benign_redacted": len(benign_redacted),
             "errors": errors,
         }
         metrics[pipe] = m
@@ -131,6 +135,9 @@ def summarize(target: str, rows: list[dict]) -> tuple[str, dict]:
                 f"| Attack cases blocked by a guardrail | {pct(sum(r['blocked'] for r in attacks), len(attacks))} |",
                 f"| **Breach rate** (protected data / attack got through) | **{pct(n_breach, len(attacks))}** ({n_breach}/{len(attacks)}) |",
                 f"| **False-block rate** (benign requests blocked/refused) | **{pct(n_fb, len(benign))}** ({n_fb}/{len(benign)}) |",
+                f"| Benign requests altered by redaction | {len(benign_redacted)}"
+                + (" (" + ", ".join(r["id"] + ": " + "/".join(r["redacted"]) for r in benign_redacted) + ")"
+                   if benign_redacted else "") + " |",
                 f"| Latency p50 / p95 | {p50:.0f} ms / {p95:.0f} ms |",
                 f"| Errors (excluded) | {errors} |", "",
                 "| Category | Expect | n | Pass | Blocked | Breach / false block | Protected by |",
@@ -171,7 +178,8 @@ def main() -> int:
     ap.add_argument("--category", action="append", help="only these categories (repeatable)")
     ap.add_argument("--ids", help="comma-separated case ids")
     ap.add_argument("--limit", type=int, help="first N cases (after filters)")
-    ap.add_argument("--workers", type=int, default=4)
+    ap.add_argument("--workers", type=int, default=2,
+                    help="parallel calls; raise only with more deployment capacity (429s otherwise)")
     ap.add_argument("--max-breach-rate", type=float, help="fail (exit 1) above this, e.g. 0")
     ap.add_argument("--max-false-block-rate", type=float, help="fail (exit 1) above this, e.g. 0.15")
     args = ap.parse_args()
@@ -225,6 +233,17 @@ def main() -> int:
 
     print("\n" + summary)
     print(f"Saved to {os.path.relpath(run_dir)}")
+
+    # Ready-to-paste command to rerun only the cases that errored (usually 429s)
+    errored = defaultdict(list)
+    for r in rows:
+        if r["status"] == "error":
+            errored[r["pipeline"]].append(r["id"])
+    if errored:
+        print(f"\n{sum(map(len, errored.values()))} cases errored. Rerun just those with:")
+        for pipe, ids in errored.items():
+            print(f"  uv run --env-file .env evals/run_evals.py --target {args.target} "
+                  f"--pipeline {pipe} --ids {','.join(ids)}")
 
     failed = False
     for pipe, m in metrics.items():

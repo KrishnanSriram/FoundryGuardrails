@@ -37,11 +37,13 @@ language = TextAnalyticsClient(os.environ["AZURE_COGNITIVE_ENDPOINT"], cred)
 DEPLOYMENT = os.environ["DEPLOYMENT"]
 
 # PCI + common PII categories. Full list: Language service PII entity categories.
-PII_CATEGORIES = [
-    "CreditCardNumber", "USBankAccountNumber", "ABARoutingNumber",
-    "USSocialSecurityNumber", "InternationalBankingAccountNumber",
-    "Email", "PhoneNumber", "Address", "Person", "USDriversLicenseNumber",
-    "USUKPassportNumber", "IPAddress",
+PII_CATEGORIES = [  # keep in sync with INPUT_REDACT_CATEGORIES in guard.py
+    "ABARoutingNumber", "Address", "AzureSAS", "AzureStorageAccountKey",
+    "CreditCardNumber", "EUDebitCardNumber", "Email", "IPAddress",
+    "InternationalBankingAccountNumber", "Person", "PhoneNumber",
+    "SQLServerConnectionString", "SWIFTCode", "USBankAccountNumber",
+    "USDriversLicenseNumber", "USIndividualTaxpayerIdentification",
+    "USSocialSecurityNumber", "USUKPassportNumber",
 ]
 
 SYSTEM_PROMPT = (
