@@ -2,14 +2,19 @@
 Smoke test: 6 requests through the guarded pipeline, on GPT, Claude or both.
 Each test states what must happen; the run prints PASS/FAIL and exits 1 on any failure.
 
-  uv run --env-file .env app/chat.py                 # both models
-  uv run --env-file .env app/chat.py --model gpt
-  uv run --env-file .env app/chat.py --model claude
+  uv run --env-file .env app/chat.py
+
+Settings come from .env (see models.py): MODELS, GUARD_LANGUAGE, GUARD_CONTENT_SAFETY.
+For a single run, put the setting in front of the command:
+  MODELS=claude uv run --env-file .env app/chat.py
+  GUARD_LANGUAGE=off uv run --env-file .env app/chat.py
+
+The expectations below assume both services are on. With one switched off,
+the tests that depend on it are expected to FAIL: that is what it shows.
 """
-import argparse
 import sys
 
-from models import MODELS, ask
+from models import ask, guard, selected_models
 
 TESTS = [
     # (name, question, documents, expected outcome, PII that must be masked)
@@ -64,10 +69,12 @@ def describe(r) -> str:
 
 
 if __name__ == "__main__":
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--model", choices=[*MODELS, "both"], default="both")
-    choice = ap.parse_args().model
-    models = list(MODELS) if choice == "both" else [choice]
+    models = selected_models()
+    g = guard()
+    print(f"Models: {', '.join(models)} | Guard: {g.describe()}")
+    if not (g.use_language and g.use_content_safety):
+        print("  (a service is off, so tests that rely on it are expected to fail)")
+    print()
 
     passed = total = 0
     for name, question, docs, expected, must_mask in TESTS:

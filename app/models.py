@@ -14,6 +14,12 @@ Claude has no Foundry policy, so guard.py is its only guardrail.
 
 Environment (from .env): AZURE_COGNITIVE_ENDPOINT, AZURE_OPENAI_ENDPOINT,
 DEPLOYMENT, and for Claude ANTHROPIC_FOUNDRY_BASE_URL, CLAUDE_DEPLOYMENT.
+
+Run settings (optional):
+  MODELS=gpt,claude          which models chat.py and run_evals.py test (default: both)
+  GUARD_LANGUAGE=on          off = skip Azure AI Language (PII / PCI redaction and reply check)
+  GUARD_CONTENT_SAFETY=on    off = skip Azure AI Content Safety (Prompt Shields and harm checks)
+Set them in .env, or for one run: GUARD_LANGUAGE=off uv run --env-file .env app/chat.py
 """
 from __future__ import annotations
 
@@ -94,10 +100,31 @@ def credential():
     return DefaultAzureCredential()
 
 
+def _switch(name: str) -> bool:
+    """On unless the variable says otherwise. A typo raises rather than silently switching off."""
+    value = os.environ.get(name, "on").strip().lower()
+    if value in ("on", "true", "1", "yes", "enabled"):
+        return True
+    if value in ("off", "false", "0", "no", "disabled"):
+        return False
+    raise ValueError(f"{name}={value!r}: use on or off")
+
+
 @cache
 def guard() -> Guard:
     return Guard(os.environ["AZURE_COGNITIVE_ENDPOINT"], credential(),
-                 harm_threshold=os.environ.get("GUARD_HARM_THRESHOLD", "Low"))
+                 harm_threshold=os.environ.get("GUARD_HARM_THRESHOLD", "Low"),
+                 use_language=_switch("GUARD_LANGUAGE"),
+                 use_content_safety=_switch("GUARD_CONTENT_SAFETY"))
+
+
+def selected_models() -> list[str]:
+    """MODELS from the environment, e.g. "gpt" or "gpt,claude" (default: all)."""
+    names = [m.strip().lower() for m in os.environ.get("MODELS", ",".join(MODELS)).split(",") if m.strip()]
+    unknown = [m for m in names if m not in MODELS]
+    if unknown or not names:
+        raise ValueError(f"MODELS={os.environ.get('MODELS')!r}: use any of {', '.join(MODELS)}")
+    return list(dict.fromkeys(names))
 
 
 @cache

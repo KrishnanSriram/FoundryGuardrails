@@ -13,6 +13,12 @@ Uses Entra ID (the Foundry account has API keys disabled) and the same
 Foundry resource. Needs the "Cognitive Services User" role.
 
 Errors fail closed: if a check can't run, it raises and the model isn't called.
+
+Each service can be switched off (both are on by default), e.g. to measure
+what it adds or to compare with the Foundry policy alone:
+  Guard(..., use_language=False)        no redaction, no PII check on replies
+  Guard(..., use_content_safety=False)  no Prompt Shields, no harm checks
+A switched-off service is never called; its checks report "nothing found".
 """
 from __future__ import annotations
 
@@ -53,13 +59,20 @@ class Verdict:
 
 
 class Guard:
-    def __init__(self, cognitive_endpoint: str, credential, harm_threshold: str = "Low"):
+    def __init__(self, cognitive_endpoint: str, credential, harm_threshold: str = "Low",
+                 use_language: bool = True, use_content_safety: bool = True):
         self.endpoint = cognitive_endpoint.rstrip("/")
+        self.use_language = use_language              # AI Language: PII / PCI
+        self.use_content_safety = use_content_safety  # Content Safety: Prompt Shields + harm
         self._token = get_bearer_token_provider(
             credential, "https://cognitiveservices.azure.com/.default")
-        self._language = TextAnalyticsClient(self.endpoint, credential)
+        self._language = TextAnalyticsClient(self.endpoint, credential) if use_language else None
         self.severity_floor = SEVERITY_FLOOR[harm_threshold]
         self._pool = ThreadPoolExecutor(max_workers=4)
+
+    def describe(self) -> str:
+        on = lambda b: "ON" if b else "OFF"
+        return f"AI Language {on(self.use_language)}, Content Safety {on(self.use_content_safety)}"
 
     # ------------------------------------------------------------- the two checks
     def screen_input(self, question: str, docs: list[str] | None = None) -> Verdict:
@@ -87,18 +100,22 @@ class Guard:
     # ------------------------------------------------------- individual services
     def redact(self, text: str) -> tuple[str, list[str]]:
         """Language PII: returns (text with PII masked as ***, categories found)."""
+        if not self.use_language:
+            return text, []
         r = self._pii(text, REDACT_CATEGORIES)
         return r.redacted_text, sorted({e.category for e in r.entities})
 
     def detect_pii(self, text: str) -> list[str]:
         """Language PII: blocking categories present in text."""
-        if not text.strip():
+        if not self.use_language or not text.strip():
             return []
         return sorted({e.category for e in self._pii(text).entities} & BLOCK_CATEGORIES)
 
     def prompt_shields(self, user_prompt: str, docs: list[str]) -> list[str]:
         """Content Safety Prompt Shields: jailbreak in the prompt, attacks in documents."""
-        res = self._content_safety("shieldPrompt", {"userPrompt": user_prompt, "documents": docs})
+        if not self.use_content_safety:
+            return []
+        res =self._content_safety("shieldPrompt", {"userPrompt": user_prompt, "documents": docs})
         reasons = ["jailbreak"] if res.get("userPromptAnalysis", {}).get("attackDetected") else []
         reasons += [f"indirect_attack(doc {i})"
                     for i, d in enumerate(res.get("documentsAnalysis", [])) if d.get("attackDetected")]
@@ -106,7 +123,7 @@ class Guard:
 
     def harm(self, text: str) -> list[str]:
         """Content Safety text analysis: hate, sexual, violence, self-harm."""
-        if not text.strip():
+        if not self.use_content_safety or not text.strip():
             return []
         res = self._content_safety("analyze", {"text": text, "outputType": "FourSeverityLevels"})
         return [f"{c['category'].lower()}(severity {c['severity']})"
